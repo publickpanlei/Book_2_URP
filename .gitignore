@@ -1,0 +1,15 @@
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Ll]ogs/
+*.csproj
+*.sln
+*.userprefs
+.vs/
+.gradle/
+/.vscode/
+/.nani/
+/UserSettings/
+/ProjectSettings/
+/Files/
