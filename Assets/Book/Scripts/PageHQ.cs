@@ -41,6 +41,8 @@ public class PageHQ : MonoBehaviour
 
     private int type;
 
+    private string wantJump = "";
+
     private void turnPage()
     {
         type = getPageType();
@@ -114,6 +116,23 @@ public class PageHQ : MonoBehaviour
 
     public void nextStory()
     {
+        if (wantJump.Length > 0)
+        {
+            int i = GameData.instance.bookData.FindIndex(book => book.storyName == wantJump);
+            if (i >= 0)
+            {
+                PlayerData.instance.storyIndex = i;
+                PlayerData.instance.pageIndex = 0;
+                PlayerData.instance.inSelect = 0;
+                PlayerData.instance.selectIndex = 0;
+                PlayerData.instance.selectPageIndex = 0;
+                buttonLast.interactable = false;
+                buttonLastWide.interactable = false;
+                buttonNext.interactable = true;
+                turnPage();
+                return;
+            }
+        }
         if (PlayerData.instance.storyIndex < GameData.instance.bookData.Count - 1)
         {
             PlayerData.instance.storyIndex++;
@@ -215,6 +234,7 @@ public class PageHQ : MonoBehaviour
     }
     public void updateResult()
     {
+        wantJump = "";
         if (GameData.instance.bookData[PlayerData.instance.storyIndex].choose.Length == 0)
         {
             return;
@@ -242,6 +262,19 @@ public class PageHQ : MonoBehaviour
             string leftPart = a.Substring(0, operatorIndex).Trim();
             string rightPart = a.Substring(operatorIndex + 1).Trim();
             bool isAddition = operatorChar == '+';
+
+            // 5. 跳转
+            if (a.Contains("跳转"))
+            {
+                int equalsIndex = a.IndexOf('+');
+
+                if (equalsIndex >= 0)
+                {
+                    wantJump = a.Substring(equalsIndex + 1);
+                    Debug.Log("跳转到 " + wantJump);
+                }
+                continue;
+            }
 
             // 1. 检查是否包含"标签"
             if (a.Contains("标签"))
@@ -349,8 +382,10 @@ public class PageHQ : MonoBehaviour
                 }
                 continue;
             }
+          
 
-            // 5. 如果没有匹配到任何内容
+
+            // 6. 如果没有匹配到任何内容
             Debug.LogWarning($"未找到匹配的对象执行指令: {a}");
         }
     }
