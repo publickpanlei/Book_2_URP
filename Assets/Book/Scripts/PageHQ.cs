@@ -19,7 +19,8 @@ public class PageHQ : MonoBehaviour
             Destroy(gameObject);
         }
     }
-
+    [SerializeField]
+    private SpritePage spritePage;
     [SerializeField]
     private Page[] pages;//左侧的: 0讲述 1对话 //右侧的: 2选择 //顶层的: 3横图 4窄图
     [SerializeField]
@@ -116,6 +117,14 @@ public class PageHQ : MonoBehaviour
 
     public void nextStory()
     {
+        spritePage.TurnPage();
+    }
+    public void openButtonNext()
+    {
+        buttonNext.interactable = true;
+    }
+    public void nextStoryData()
+    {
         if (wantJump.Length > 0)
         {
             int i = GameData.instance.bookData.FindIndex(book => book.storyName == wantJump);
@@ -210,6 +219,7 @@ public class PageHQ : MonoBehaviour
                 }
                 else
                 {
+                    buttonNext.interactable = false;
                     Debug.Log("故事结束");
                     updateResult();
                     nextStory();
@@ -226,6 +236,7 @@ public class PageHQ : MonoBehaviour
             }
             else if (PlayerData.instance.selectPageIndex == GameData.instance.bookData[PlayerData.instance.storyIndex].choose[PlayerData.instance.selectIndex].page.Length - 1)
             {
+                buttonNext.interactable = false;
                 Debug.Log("故事结束");
                 updateResult();
                 nextStory();
@@ -235,159 +246,168 @@ public class PageHQ : MonoBehaviour
     public void updateResult()
     {
         wantJump = "";
-        if (GameData.instance.bookData[PlayerData.instance.storyIndex].choose.Length == 0)
+
+        if (GameData.instance.bookData[PlayerData.instance.storyIndex].result.Length > 0)
         {
+            for (int i = 0; i < GameData.instance.bookData[PlayerData.instance.storyIndex].result.Length; i++)
+            {
+                string a = GameData.instance.bookData[PlayerData.instance.storyIndex].result[i];
+                seeString(a);
+            }
+        }
+        if (GameData.instance.bookData[PlayerData.instance.storyIndex].choose.Length > 0)
+        {
+            for (int i = 0; i < GameData.instance.bookData[PlayerData.instance.storyIndex].choose[PlayerData.instance.selectIndex].result.Length; i++)
+            {
+                string a = GameData.instance.bookData[PlayerData.instance.storyIndex].choose[PlayerData.instance.selectIndex].result[i];
+                seeString(a);
+            }
+        }
+    }
+    private void seeString(string a)
+    {
+        // 检查是否包含+或-
+        if (!a.Contains("+") && !a.Contains("-"))
+        {
+            Debug.LogWarning($"指令 '{a}' 不包含 '+' 或 '-' 操作符");
             return;
         }
-        for (int i = 0; i < GameData.instance.bookData[PlayerData.instance.storyIndex].choose[PlayerData.instance.selectIndex].result.Length; i++) 
+
+        char operatorChar = a.Contains("+") ? '+' : '-';
+        int operatorIndex = a.IndexOf(operatorChar);
+
+        if (operatorIndex <= 0 || operatorIndex >= a.Length - 1)
         {
-            string a = GameData.instance.bookData[PlayerData.instance.storyIndex].choose[PlayerData.instance.selectIndex].result[i];
-
-            // 检查是否包含+或-
-            if (!a.Contains("+") && !a.Contains("-"))
-            {
-                Debug.LogWarning($"指令 '{a}' 不包含 '+' 或 '-' 操作符");
-                continue;
-            }
-
-            char operatorChar = a.Contains("+") ? '+' : '-';
-            int operatorIndex = a.IndexOf(operatorChar);
-
-            if (operatorIndex <= 0 || operatorIndex >= a.Length - 1)
-            {
-                Debug.LogWarning($"指令 '{a}' 格式错误");
-                continue;
-            }
-
-            string leftPart = a.Substring(0, operatorIndex).Trim();
-            string rightPart = a.Substring(operatorIndex + 1).Trim();
-            bool isAddition = operatorChar == '+';
-
-            // 5. 跳转
-            if (a.Contains("跳转"))
-            {
-                int equalsIndex = a.IndexOf('+');
-
-                if (equalsIndex >= 0)
-                {
-                    wantJump = a.Substring(equalsIndex + 1);
-                    Debug.Log("跳转到 " + wantJump);
-                }
-                continue;
-            }
-
-            // 1. 检查是否包含"标签"
-            if (a.Contains("标签"))
-            {
-                // 格式: "角色名+标签+新标签" 或 "角色名-标签-要移除的标签"
-                string[] labelParts = a.Split(new char[] { '+', '-' }, 3);
-                if (labelParts.Length < 3)
-                {
-                    Debug.LogWarning($"标签指令格式错误: {a}");
-                    continue;
-                }
-
-                string roleName = labelParts[0].Trim();
-                string labelName = labelParts[2].Trim();
-
-                var targetRole = PlayerData.instance.roles.FirstOrDefault(r => a.Contains(r.rName));
-                if (targetRole != null)
-                {
-                    if (isAddition)
-                    {
-                        targetRole.AddBuff(labelName);
-                        Debug.Log($"角色 '{roleName}' 添加标签: {labelName}");
-                    }
-                    else
-                    {
-                        targetRole.RemoveBuff(labelName);
-                        Debug.Log($"角色 '{roleName}' 移除标签: {labelName}");
-                    }
-                }
-                else
-                {
-                    Debug.LogWarning($"未找到角色: {roleName}");
-                }
-                continue;
-            }
-
-            // 2. 检查是否包含某个角色的名字
-            var matchedRole = PlayerData.instance.roles.FirstOrDefault(r => a.Contains(r.rName));
-            if (matchedRole != null)
-            {
-                // 检查是否包含"认识"或"友善"
-                if (a.Contains("认识"))
-                {
-                    if (int.TryParse(rightPart, out int value))
-                    {
-                        matchedRole.know += isAddition ? value : -value;
-                        Debug.Log($"角色 '{matchedRole.rName}' 认识 {(isAddition ? "增加" : "减少")} {value}，当前: {matchedRole.know}");
-                    }
-                    else
-                    {
-                        Debug.LogWarning($"无法解析数值: {rightPart}");
-                    }
-                    continue;
-                }
-
-                if (a.Contains("友善"))
-                {
-                    if (int.TryParse(rightPart, out int value))
-                    {
-                        matchedRole.friendly += isAddition ? value : -value;
-                        Debug.Log($"角色 '{matchedRole.rName}' 友善 {(isAddition ? "增加" : "减少")} {value}，当前: {matchedRole.friendly}");
-                    }
-                    else
-                    {
-                        Debug.LogWarning($"无法解析数值: {rightPart}");
-                    }
-                    continue;
-                }
-            }
-
-            // 3. 检查attributeOne中的属性
-            var matchedAttributeOne = PlayerData.instance.attributeOne.FirstOrDefault(attr => a.Contains(attr.aName));
-            if (matchedAttributeOne != null)
-            {
-                if (int.TryParse(rightPart, out int value))
-                {
-                    int newValue = matchedAttributeOne.value + (isAddition ? value : -value);
-                    // 限制在min和max范围内
-                    newValue = Mathf.Clamp(newValue, matchedAttributeOne.min, matchedAttributeOne.max);
-                    matchedAttributeOne.value = newValue;
-                    Debug.Log($"属性 '{matchedAttributeOne.aName}' {(isAddition ? "增加" : "减少")} {value}，当前: {matchedAttributeOne.value}");
-                }
-                else
-                {
-                    Debug.LogWarning($"无法解析数值: {rightPart}");
-                }
-                continue;
-            }
-
-            // 4. 检查attributeFamily中的属性
-            var matchedAttributeFamily = PlayerData.instance.attributeFamily.FirstOrDefault(attr => a.Contains(attr.aName));
-            if (matchedAttributeFamily != null)
-            {
-                if (int.TryParse(rightPart, out int value))
-                {
-                    int newValue = matchedAttributeFamily.value + (isAddition ? value : -value);
-                    // 限制在min和max范围内
-                    newValue = Mathf.Clamp(newValue, matchedAttributeFamily.min, matchedAttributeFamily.max);
-                    matchedAttributeFamily.value = newValue;
-                    Debug.Log($"属性 '{matchedAttributeFamily.aName}' {(isAddition ? "增加" : "减少")} {value}，当前: {matchedAttributeFamily.value}");
-                }
-                else
-                {
-                    Debug.LogWarning($"无法解析数值: {rightPart}");
-                }
-                continue;
-            }
-          
-
-
-            // 6. 如果没有匹配到任何内容
-            Debug.LogWarning($"未找到匹配的对象执行指令: {a}");
+            Debug.LogWarning($"指令 '{a}' 格式错误");
+            return;
         }
+
+        string leftPart = a.Substring(0, operatorIndex).Trim();
+        string rightPart = a.Substring(operatorIndex + 1).Trim();
+        bool isAddition = operatorChar == '+';
+
+        // 5. 跳转
+        if (a.Contains("跳转"))
+        {
+            int equalsIndex = a.IndexOf('+');
+
+            if (equalsIndex >= 0)
+            {
+                wantJump = a.Substring(equalsIndex + 1);
+                Debug.Log("跳转到 " + wantJump);
+            }
+            return;
+        }
+
+        // 1. 检查是否包含"标签"
+        if (a.Contains("标签"))
+        {
+            // 格式: "角色名+标签+新标签" 或 "角色名-标签-要移除的标签"
+            string[] labelParts = a.Split(new char[] { '+', '-' }, 3);
+            if (labelParts.Length < 3)
+            {
+                Debug.LogWarning($"标签指令格式错误: {a}");
+                return;
+            }
+
+            string roleName = labelParts[0].Trim();
+            string labelName = labelParts[2].Trim();
+
+            var targetRole = PlayerData.instance.roles.FirstOrDefault(r => a.Contains(r.rName));
+            if (targetRole != null)
+            {
+                if (isAddition)
+                {
+                    targetRole.AddBuff(labelName);
+                    Debug.Log($"角色 '{roleName}' 添加标签: {labelName}");
+                }
+                else
+                {
+                    targetRole.RemoveBuff(labelName);
+                    Debug.Log($"角色 '{roleName}' 移除标签: {labelName}");
+                }
+            }
+            else
+            {
+                Debug.LogWarning($"未找到角色: {roleName}");
+            }
+            return;
+        }
+
+        // 2. 检查是否包含某个角色的名字
+        var matchedRole = PlayerData.instance.roles.FirstOrDefault(r => a.Contains(r.rName));
+        if (matchedRole != null)
+        {
+            // 检查是否包含"认识"或"友善"
+            if (a.Contains("认识"))
+            {
+                if (int.TryParse(rightPart, out int value))
+                {
+                    matchedRole.know += isAddition ? value : -value;
+                    Debug.Log($"角色 '{matchedRole.rName}' 认识 {(isAddition ? "增加" : "减少")} {value}，当前: {matchedRole.know}");
+                }
+                else
+                {
+                    Debug.LogWarning($"无法解析数值: {rightPart}");
+                }
+                return;
+            }
+
+            if (a.Contains("友善"))
+            {
+                if (int.TryParse(rightPart, out int value))
+                {
+                    matchedRole.friendly += isAddition ? value : -value;
+                    Debug.Log($"角色 '{matchedRole.rName}' 友善 {(isAddition ? "增加" : "减少")} {value}，当前: {matchedRole.friendly}");
+                }
+                else
+                {
+                    Debug.LogWarning($"无法解析数值: {rightPart}");
+                }
+                return;
+            }
+        }
+
+        // 3. 检查attributeOne中的属性
+        var matchedAttributeOne = PlayerData.instance.attributeOne.FirstOrDefault(attr => a.Contains(attr.aName));
+        if (matchedAttributeOne != null)
+        {
+            if (int.TryParse(rightPart, out int value))
+            {
+                int newValue = matchedAttributeOne.value + (isAddition ? value : -value);
+                // 限制在min和max范围内
+                newValue = Mathf.Clamp(newValue, matchedAttributeOne.min, matchedAttributeOne.max);
+                matchedAttributeOne.value = newValue;
+                Debug.Log($"属性 '{matchedAttributeOne.aName}' {(isAddition ? "增加" : "减少")} {value}，当前: {matchedAttributeOne.value}");
+            }
+            else
+            {
+                Debug.LogWarning($"无法解析数值: {rightPart}");
+            }
+            return;
+        }
+
+        // 4. 检查attributeFamily中的属性
+        var matchedAttributeFamily = PlayerData.instance.attributeFamily.FirstOrDefault(attr => a.Contains(attr.aName));
+        if (matchedAttributeFamily != null)
+        {
+            if (int.TryParse(rightPart, out int value))
+            {
+                int newValue = matchedAttributeFamily.value + (isAddition ? value : -value);
+                // 限制在min和max范围内
+                newValue = Mathf.Clamp(newValue, matchedAttributeFamily.min, matchedAttributeFamily.max);
+                matchedAttributeFamily.value = newValue;
+                Debug.Log($"属性 '{matchedAttributeFamily.aName}' {(isAddition ? "增加" : "减少")} {value}，当前: {matchedAttributeFamily.value}");
+            }
+            else
+            {
+                Debug.LogWarning($"无法解析数值: {rightPart}");
+            }
+            return;
+        }
+        // 6. 如果没有匹配到任何内容
+        Debug.LogWarning($"未找到匹配的对象执行指令: {a}");
+        return;
     }
     public void inSelect(int i)
     {

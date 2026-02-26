@@ -173,11 +173,12 @@ public class GameData : MonoBehaviour
         public string storyName;
         public string note;
         public string[] premise;
+        public string[] result;
         public Page[] page;
         public Choose[] choose;
-        public BookData(string p, string n, string[] a)
+        public BookData(string p, string n, string[] a, string[] r)
         {
-            storyName = p; note = n; premise = a;
+            storyName = p; note = n; premise = a; result = r;
         }
     }
     public List<BookData> bookData = new List<BookData>();
@@ -210,9 +211,15 @@ public class GameData : MonoBehaviour
                     {
                         premise[j] = bookJson["前提"][j].ToString();
                     }
+                    // 解析结果数组
+                    string[] result = new string[bookJson["结果"].Count];
+                    for (int j = 0; j < bookJson["结果"].Count; j++)
+                    {
+                        result[j] = bookJson["结果"][j].ToString();
+                    }
 
                     // 创建BookData对象
-                    BookData data = new BookData(pageName, note, premise);
+                    BookData data = new BookData(pageName, note, premise, result);
 
                     // 解析叙事部分
                     if (bookJson["叙事"].IsArray)
